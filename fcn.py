@@ -92,6 +92,18 @@ class FCN(object):
         'biases': tf.Variable(tf.zeros([21,]), '{}_biases'.format(name))
       }
       return dic
+    elif name == 'score_pool4':
+      dic = {
+        'weights': tf.Variable(tf.contrib.layers.xavier_initializer()([1, 1, 512, 21]), '{}_weights'.format(name)),
+        'biases': tf.Variable(tf.zeros([21,]), '{}_biases'.format(name))
+      }
+      return dic
+    elif name == 'score_pool3':
+      dic = {
+        'weights': tf.Variable(tf.contrib.layers.xavier_initializer()([1, 1, 512, 21]), '{}_weights'.format(name)),
+        'biases': tf.Variable(tf.zeros([21,]), '{}_biases'.format(name))
+      }
+      return dic
 
   def _get_upconv_params(self, factor, out_channels, name):
     kernel_sz = 2*factor - factor%2
@@ -111,8 +123,8 @@ class FCN(object):
     biases = np.zeros([out_channels,], dtype=np.float32)
 
     dic = {
-      'weights': tf.Variable(weights, '{}_weights'.format(name),
-      'biases': tf.Variable(biases, '{}_biases'.format(name)
+      'weights': tf.Variable(weights, '{}_weights'.format(name)),
+      'biases': tf.Variable(biases, '{}_biases'.format(name))
     }
     return dic
 
@@ -171,7 +183,10 @@ class FCN(object):
          tf.shape(one_hot_annotation)[1],
          tf.shape(one_hot_annotation)[2],
          tf.shape(one_hot_annotation)[3]-1]), [-1, 21]) # (H*W, 21)
-    class_weights = tf.expand_dims(class_weights, 0) # (1, 21)
+    if class_weights is not None:
+      class_weights = tf.expand_dims(class_weights, 0) # (1, 21)
+    else:
+      class_weights = tf.expand_dims(tf.ones([21,], dtype=tf.float32), 0)
     weighted_annotation = tf.transpose(tf.matmul(one_hot_annotation, tf.transpose(class_weights))) # (1, H*W)
     #probs = tf.nn.softmax(prediction)
     #loss = - tf.reduce_mean(tf.log(probs) * weighted_annotation)
@@ -293,57 +308,38 @@ class FCN(object):
 
     # Upconv 2x
     self.params['upconv2'] = self._get_upconv_params(2, 21, 'upconv2')
-    self.net['upconv2'] = tf.nn.conv2d_transpose(self.net['score_fc'], self.params['upconv2'], output_shape=[1, tf.shape(self.net['score_fc'])[1] * 2, tf.shape(self.net['score_fc'])[2] * 2, 21], strides = [1,2,2,1])
+    self.net['upconv2'] = tf.nn.conv2d_transpose(self.net['score_fc'], self.params['upconv2']['weights'], output_shape=[1, tf.shape(self.net['score_fc'])[1] * 2, tf.shape(self.net['score_fc'])[2] * 2, 21], strides = [1,2,2,1])
+    self.net['cropped_upconv2'] = self._get_crop_layer(self.net['upconv2'], self.net['pool4'])
 
-    '''
-    # Upsample 2
-    self.net['upsample2'] = tf.layers.conv2d_transpose(self.net['fc2'],
-                                                       256,
-                                                       (4, 4),
-                                                       (2, 2),
-                                                       'SAME')
-    self.net['relu_upsample2'] = self._get_relu_layer(self.net['upsample2'])
+    # Score pool4
+    self.params['score_pool4'] = self._get_vgg_conv_params('score_pool4')
+    self.net['score_pool4'] = self._get_conv_layer(self.net['pool4'], self.params['score_pool4'])
 
-    # Crop 1
-    self.net['crop1'] = self._get_crop_layer(self.net['upsample2'],
-                                             self.net['pool2'])
+    # Fuse pool4
+    self.net['fuse_pool4'] = tf.add(self.net['score_pool4'], self.net['cropped_upconv2'])
 
-    # Fuse pool2
-    self.net['fuse_pool2'] = tf.add(self.net['crop1'], self.net['pool2'])
+    # Upconv 4x
+    self.params['upconv4'] = self._get_upconv_params(2, 21, 'upconv4')
+    self.net['upconv4'] = tf.nn.conv2d_transpose(self.net['fuse_pool4'], self.params['upconv4']['weights'], output_shape=[1, tf.shape(self.net['fuse_pool4'])[1] * 2, tf.shape(self.net['fuse_pool4'])[2] * 2, 21] strides = [1,2,2,1])
+    self.net['cropped_upconv4'] = self._get_crop_layer(self.net['upconv4'], self.net['pool3'])
 
-    # Upsample 4
-    self.net['upsample4'] = tf.layers.conv2d_transpose(self.net['fuse_pool2'],
-                                                       64,
-                                                       (4, 4),
-                                                       (2, 2),
-                                                       'SAME')
-    self.net['relu_upsample4'] = self._get_relu_layer(self.net['upsample4'])
+    # Score pool3
+    self.params['score_pool3'] = self._get_vgg_conv_params('score_pool3')
+    self.net['score_pool3'] = self._get_conv_layer(self.net['pool3'], self.params['score_pool3'])
 
-    # Crop 2
-    self.net['crop2'] = self._get_crop_layer(self.net['upsample4'],
-                                             self.net['pool1'])
-    # Fuse pool1
-    self.net['fuse_pool1'] = tf.add(self.net['crop2'], self.net['pool1'])
+    # Fuse pool3
+    self.net['fuse_pool3'] = tf.add(self.net['score_pool3'], self.net['cropped_upconv4'])
 
-    # Upsample 8
-    self.net['upsample8'] = tf.layers.conv2d_transpose(self.net['upsample4'],
-                                                       21,
-                                                       (4, 4),
-                                                       (2, 2),
-                                                       'SAME')
-    self.net['relu_upsample8'] = self._get_relu_layer(self.net['upsample8'])
+    # Final score layer
+    self.params['scores_final'] = self.get_upconv_params(8, 21, 'scores_final')
+    self.net['scores_final'] = tf.nn.conv2d_transpose(self.net['fuse_pool3'], self.params['scores_final']['weights'], output_shape=[1,tf.shape(self.net['fuse_pool3'])[1] * 2, tf.shape(self.net['fuse_pool3'])[2] * 2, 21], strides=[1,8,8,1])
+    self.net['cropped_scores_final'] = self._get_crop_layer(self.net['scores_final'], self.net['input'])
 
-    # Crop 3
-    self.net['crop3'] = self._get_crop_layer(self.net['upsample8'],
-                                             self.net['input'])
-
-    self.logger.debug('Class weights: {}'.format(self.class_weights_))
     class_weights = tf.constant(self.class_weights_)
 
-    self.net['loss'] = self._get_loss_layer_v2(self.net['crop3'],
+    self.net['loss'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
                                                self.net['annotation'],
                                                class_weights)
-    '''
 
   def train(self, max_iterations, save_params_after=None, restore_params=None):
 
