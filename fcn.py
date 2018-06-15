@@ -93,6 +93,32 @@ class FCN(object):
       }
       return dic
 
+  def _get_upconv_params(self, factor, out_channels, name):
+    kernel_sz = 2*factor - factor%2
+    weights = np.zeros([kernel_sz, kernel_sz, out_channels, out_channels], dtype=np.float32)
+
+    # Populate weights
+    if kernel_sz % 2 == 1:
+      center = factor - 1
+    else:
+      center = factor - 0.5
+    tmp = np.ogrid[:kernel_sz, :kernel_sz]
+    kernel = (1 - abs(tmp[0] - center)/factor) * (1 - abs(tmp[1] - center)/factor)
+    for i in range(out_channels):
+      weights[:, :, i, i] = kernel
+
+    # Populate biases
+    biases = np.zeros([out_channels,], dtype=np.float32)
+
+    dic = {
+      'weights': tf.Variable(weights, '{}_weights'.format(name),
+      'biases': tf.Variable(biases, '{}_biases'.format(name)
+    }
+    return dic
+
+  def _get_upconv_layer(self, bottom, params):
+    pass
+
   def _get_conv_layer(self, bottom, params):
     layer = tf.nn.bias_add(
         tf.nn.conv2d(
@@ -260,6 +286,14 @@ class FCN(object):
     self.params['fc8'] = self._get_vgg_conv_params('fc8')
     fc8_pre_relu = self._get_conv_layer(self.net['fc7'], self.params['fc8'])
     self.net['fc8'] = self._get_relu_layer(fc8_pre_relu)
+
+    # Score FC
+    self.params['score_fc'] = self._get_vgg_conv_params('score_fc')
+    self.net['score_fc'] = self._get_conv_layer(self.net['fc8'], self.params['score_fc'])
+
+    # Upconv 2x
+    self.params['upconv2'] = self._get_upconv_params(2, 21, 'upconv2')
+    self.net['upconv2'] = tf.nn.conv2d_transpose(self.net['score_fc'], self.params['upconv2'], output_shape=[1, tf.shape(self.net['score_fc'])[1] * 2, tf.shape(self.net['score_fc'])[2] * 2, 21], strides = [1,2,2,1])
 
     '''
     # Upsample 2
