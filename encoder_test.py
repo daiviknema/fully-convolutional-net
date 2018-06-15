@@ -3,9 +3,13 @@ from fcn import FCN
 import tensorflow as tf
 import numpy as np
 
-TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
-TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
-VGG_PARAMS_ROOT_DIR = '/root/tf-fcn/vgg-weights'
+#TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
+#TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
+#VGG_PARAMS_ROOT_DIR = '/root/tf-fcn/vgg-weights'
+
+TRAINVAL_ROOT_DIR = '/home/paperspace/PASCAL-VOC-Dataset/TrainVal'
+TEST_ROOT_DIR = '/home/paperspace/PASCAL-VOC-Dataset/Test'
+VGG_PARAMS_ROOT_DIR = '/home/paperspace/FCN/vgg-weights'
 dsr = VOCDataReader(TRAINVAL_ROOT_DIR, TEST_ROOT_DIR)
 fcn = FCN(TRAINVAL_ROOT_DIR, TEST_ROOT_DIR, VGG_PARAMS_ROOT_DIR)
 
