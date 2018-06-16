@@ -344,6 +344,7 @@ class FCN(object):
     self.optimizer = tf.train.AdamOptimizer()
 
     if is_coarse:
+      self.logger.debug('Minimizing only score filters')
       train_step = self.optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
     else:
       train_step = self.optimizer.minimize(self.net['loss'])

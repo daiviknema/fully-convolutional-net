@@ -6,6 +6,8 @@ import cv2
 import sys, os, logging
 import matplotlib.pyplot as plt
 
+logging.basicConfig(level=logging.DEBUG)
+
 def print_usage():
   print('python train.py [--coarse | --fine]')
 
@@ -19,11 +21,18 @@ if sys.argv[-1] == '--coarse':
 else:
   coarse = False
 
-TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
-TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
-VGG_PARAMS_ROOT_DIR = '/root/tf-fcn/vgg-weights'
+if coarse:
+  logging.debug('Coarse training')
 
-MAX_ITERATIONS = 1
+# TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
+# TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
+# VGG_PARAMS_ROOT_DIR = '/root/tf-fcn/vgg-weights'
+
+TRAINVAL_ROOT_DIR = '/home/paperspace/PASCAL-VOC-Dataset/TrainVal'
+TEST_ROOT_DIR = '/home/paperpsace/PASCAL-VOC-Dataset/Test'
+VGG_PARAMS_ROOT_DIR = '/home/paperspace/FCN/vgg-weights'
+
+MAX_ITERATIONS = 10
 SAVE_PARAMS_AFTER = 1
 
 fcn = FCN(TRAINVAL_ROOT_DIR, TEST_ROOT_DIR, VGG_PARAMS_ROOT_DIR)
