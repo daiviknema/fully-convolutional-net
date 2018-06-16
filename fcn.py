@@ -352,9 +352,9 @@ class FCN(object):
     self.sess.run(tf.global_variables_initializer())
     if is_coarse:
       saver = tf.train.Saver({
-        'score_pool3': self.params['score_pool3']['weights'],
-        'score_pool4': self.params['score_pool4']['weights'],
-        'score_fc': self.params['score_fc']['weights'],
+        'score_pool3_weights': self.params['score_pool3']['weights'],
+        'score_pool4_weights': self.params['score_pool4']['weights'],
+        'score_fc_weights': self.params['score_fc']['weights'],
         }, max_to_keep = 1)
     else:
       saver = tf.train.Saver(max_to_keep = 1)
