@@ -332,21 +332,58 @@ class FCN(object):
 
     # Final score layer
     self.params['scores_final'] = self.get_upconv_params(8, 21, 'scores_final')
-    self.net['scores_final'] = tf.nn.conv2d_transpose(self.net['fuse_pool3'], self.params['scores_final']['weights'], output_shape=[1,tf.shape(self.net['fuse_pool3'])[1] * 2, tf.shape(self.net['fuse_pool3'])[2] * 2, 21], strides=[1,8,8,1])
+    self.net['scores_final'] = tf.nn.conv2d_transpose(self.net['fuse_pool3'], self.params['scores_final']['weights'], output_shape=[1,tf.shape(self.net['fuse_pool3'])[1] * 8, tf.shape(self.net['fuse_pool3'])[2] * 8, 21], strides=[1,8,8,1])
     self.net['cropped_scores_final'] = self._get_crop_layer(self.net['scores_final'], self.net['input'])
 
     class_weights = tf.constant(self.class_weights_)
 
     self.net['loss'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
-                                               self.net['annotation'],
-                                               class_weights)
+                                               self.net['annotation'])
 
-  def train(self, max_iterations, save_params_after=None, restore_params=None):
-
+  def train_fine(self, max_iterations, save_params_after=None, restore_params=None):
     self.optimizer = tf.train.AdamOptimizer()
     train_step = self.optimizer.minimize(self.net['loss'])
     self.sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver(max_to_keep = 2)
+    saver = tf.train.Saver(max_to_keep = 1)
+    if restore_params is not None:
+      saver.restore(self.sess, restore_params)
+    cumul_loss = 0.0
+    best_loss = None
+    for iteration in range(max_iterations):
+      batch = self.dataset_reader.next_train_batch(1)
+      for x in batch['batch']: img = x
+      for x in batch['annotations']: ann = x
+      img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
+      ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
+      _, loss = self.sess.run([train_step, self.net['loss']],
+                              feed_dict = {
+                                self.net['input']: img,
+                                self.net['annotation']: ann,
+                              })
+      cumul_loss += loss
+      if save_params_after is not None and (iteration+1)%save_params_after == 0:
+        cumul_loss /= save_params_after
+        self.logger.debug('Iteration #{} train loss: {}'.format(iteration, cumul_loss))
+        # Check if the cumulative loss is better than the best loss
+        if best_loss is None:
+          best_loss = cumul_loss
+        save_path = saver.save(self.sess,
+                               'trained_params/fcn_{}.ckpt'.format(iteration+1))
+        self.logger.debug('Model params after {} iterations saved to {}'
+                         .format(iteration+1, save_path))
+        if cumul_loss <= best_loss:
+          self.logger.debug('Found best params! Saving to best_params/')
+          os.system('rm -rf best_params')
+          os.system('mkdir best_params')
+          os.system('cp trained_params/fcn_{}* best_params/'.format(iteration+1))
+          best_loss = cumul_loss
+        cumul_loss = 0.0
+
+  def train_coarse(self, max_iterations, save_params_after=None, restore_params=None):
+    self.optimizer = tf.train.AdamOptimizer()
+    train_step = self.optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
+    self.sess.run(tf.global_variables_initializer())
+    saver = tf.train.Saver(max_to_keep = 1)
     if restore_params is not None:
       saver.restore(self.sess, restore_params)
     cumul_loss = 0.0
