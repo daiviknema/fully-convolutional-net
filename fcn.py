@@ -350,7 +350,14 @@ class FCN(object):
       train_step = self.optimizer.minimize(self.net['loss'])
 
     self.sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver(max_to_keep = 1)
+    if is_coarse:
+      saver = tf.train.Saver({
+        'score_pool3': self.params['score_pool3']['weights'],
+        'score_pool4': self.params['score_pool4']['weights'],
+        'score_fc': self.params['score_fc']['weights'],
+        }, max_to_keep = 1)
+    else:
+      saver = tf.train.Saver(max_to_keep = 1)
     if restore_params is not None:
       saver.restore(self.sess, restore_params)
     cumul_loss = 0.0
@@ -373,8 +380,12 @@ class FCN(object):
         # Check if the cumulative loss is better than the best loss
         if best_loss is None:
           best_loss = cumul_loss
-        save_path = saver.save(self.sess,
-                               'trained_params/fcn_{}.ckpt'.format(iteration+1))
+        if is_coarse:
+          save_path = saver.save(self.sess,
+                                 'trained_score_params/fcn_{}.ckpt'.format(iteration+1))
+        else:
+          save_path = saver.save(self.sess,
+                                 'trained_params/fcn_{}.ckpt'.format(iteration+1))
         self.logger.debug('Model params after {} iterations saved to {}'
                          .format(iteration+1, save_path))
         if cumul_loss <= best_loss:
