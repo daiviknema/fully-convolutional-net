@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.DEBUG)
 
 def print_usage():
-  print('python infer.py <num_examples>')
+  print('Usage:')
+  print('python infer.py <tf-checkpoint> <num_examples>')
 
 def label_matrix_to_image(label_mat, image_file = None):
   def convert(label_mod):
@@ -29,11 +30,12 @@ def label_matrix_to_image(label_mat, image_file = None):
     plt.imsave(fname=image_file, arr=img_mat, format='png')
   return img_mat
 
-if len(sys.argv) != 2:
+if len(sys.argv) != 3:
   print_usage()
   exit(1)
 
 num_examples = int(sys.argv[-1])
+checkpoint = sys.argv[1]
 
 # TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
 # TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
@@ -49,12 +51,6 @@ logging.debug('Created the fcn object')
 dsr = VOCDataReader(TRAINVAL_ROOT_DIR, TEST_ROOT_DIR)
 logging.debug('Created the dsr object')
 
-if os.path.exists('best_params') and len(os.listdir('best_params')) > 0:
-  best_params_ckpt = os.path.join('best_params', '.'.join(os.listdir('best_params')[0].split('.')[:-1]))
-else:
-  best_params_ckpt = None
-logging.debug('Best params checkpoint: {}'.format(best_params_ckpt))
-
 if not os.path.exists('inference_results'):
   os.mkdir('inference_results')
 newdir_path = 'inference_results/results-{}'.format(datetime.datetime.now().strftime('%d-%m-%Y-%H-%M-%S'))
@@ -68,7 +64,7 @@ for i in range(num_examples):
   img_unnormalized = cv2.imread(img_path)[:,:,::-1]
   for i in images: img = i
   for a in annotations: ann = a
-  segmentation = fcn.infer(img, best_params_ckpt)
+  segmentation = fcn.infer(img, checkpoint)
   label_matrix_to_image(segmentation, os.path.join(newdir_path, '{}_predicted_segmentation.png'.format(names[0])))
   label_matrix_to_image(ann, os.path.join(newdir_path, '{}_ground_truth_segmentation.png'.format(names[0])))
   plt.imsave(fname=os.path.join(newdir_path, '{}_actual_image.png'.format(names[0])), arr=img_unnormalized, format='png')

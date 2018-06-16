@@ -340,35 +340,27 @@ class FCN(object):
     self.net['loss'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
                                                self.net['annotation'])
 
-  def train(self, max_iterations, save_params_after=None, restore_params=None, is_coarse = False):
-    self.optimizer = tf.train.AdamOptimizer()
+  def train(self, max_iterations_coarse, max_iterations_fine, save_params_after=None, restore_params=None):
+    self.coarse_optimizer = tf.train.AdamOptimizer()
+    self.fine_optimizer = tf.train.AdamOptimizer()
 
-    if is_coarse:
-      self.logger.debug('Minimizing only score filters')
-      train_step = self.optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
-    else:
-      train_step = self.optimizer.minimize(self.net['loss'])
+    coarse_train_step = self.coarse_optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
+    fine_train_step = self.fine_optimizer.minimize(self.net['loss'])
 
     self.sess.run(tf.global_variables_initializer())
-    if is_coarse:
-      saver = tf.train.Saver({
-        'score_pool3_weights': self.params['score_pool3']['weights'],
-        'score_pool4_weights': self.params['score_pool4']['weights'],
-        'score_fc_weights': self.params['score_fc']['weights'],
-        }, max_to_keep = 1)
-    else:
-      saver = tf.train.Saver(max_to_keep = 1)
+    saver = tf.train.Saver(max_to_keep = 1)
     if restore_params is not None:
       saver.restore(self.sess, restore_params)
     cumul_loss = 0.0
     best_loss = None
-    for iteration in range(max_iterations):
+    self.logger.debug('========= COARSE TRAINING =========')
+    for iteration in range(max_iterations_coarse):
       batch = self.dataset_reader.next_train_batch(1)
       for x in batch['batch']: img = x
       for x in batch['annotations']: ann = x
       img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
       ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
-      _, loss = self.sess.run([train_step, self.net['loss']],
+      _, loss = self.sess.run([coarse_train_step, self.net['loss']],
                               feed_dict = {
                                 self.net['input']: img,
                                 self.net['annotation']: ann,
@@ -376,26 +368,49 @@ class FCN(object):
       cumul_loss += loss
       if save_params_after is not None and (iteration+1)%save_params_after == 0:
         cumul_loss /= save_params_after
-        self.logger.debug('Iteration #{} train loss: {}'.format(iteration, cumul_loss))
+        self.logger.debug('Iteration #{} average train loss: {}'.format(iteration, cumul_loss))
         # Check if the cumulative loss is better than the best loss
         if best_loss is None:
           best_loss = cumul_loss
-        if is_coarse:
-          save_path = saver.save(self.sess,
-                                 'trained_score_params/fcn_{}.ckpt'.format(iteration+1))
-        else:
-          save_path = saver.save(self.sess,
-                                 'trained_params/fcn_{}.ckpt'.format(iteration+1))
-        self.logger.debug('Model params after {} iterations saved to {}'
-                         .format(iteration+1, save_path))
         if cumul_loss <= best_loss:
-          self.logger.debug('Found best params! Saving to best_params/')
-          os.system('rm -rf best_params')
-          os.system('mkdir best_params')
-          if is_coarse:
-            os.system('cp trained_score_params/fcn_{}* best_params/'.format(iteration+1))
-          else:
-            os.system('cp trained_params/fcn_{}* best_params/'.format(iteration+1))
+          self.logger.debug('Found best coarse params! Saving to best_params_coarse/')
+          os.system('rm -rf best_params_coarse')
+          os.system('mkdir best_params_coarse')
+          save_path = saver.save(self.sess,
+                                 'best_params_coarse/fcn_{}.ckpt'.format(iteration+1))
+          self.logger.debug('Model params after {} iterations saved to {}'
+                           .format(iteration+1, save_path))
+          best_loss = cumul_loss
+        cumul_loss = 0.0
+    cumul_loss = 0.0
+    best_loss = None
+    self.logger.debug('========= FINE TRAINING =========')
+    for iteration in range(max_iterations_fine):
+      batch = self.dataset_reader.next_train_batch(1)
+      for x in batch['batch']: img = x
+      for x in batch['annotations']: ann = x
+      img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
+      ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
+      _, loss = self.sess.run([fine_train_step, self.net['loss']],
+                              feed_dict = {
+                                self.net['input']: img,
+                                self.net['annotation']: ann,
+                              })
+      cumul_loss += loss
+      if save_params_after is not None and (iteration+1)%save_params_after == 0:
+        cumul_loss /= save_params_after
+        self.logger.debug('Iteration #{} average train loss: {}'.format(iteration, cumul_loss))
+        # Check if the cumulative loss is better than the best loss
+        if best_loss is None:
+          best_loss = cumul_loss
+        if cumul_loss <= best_loss:
+          self.logger.debug('Found best fine params! Saving to best_params_fine/')
+          os.system('rm -rf best_params_fine')
+          os.system('mkdir best_params_fine')
+          save_path = saver.save(self.sess,
+                                 'best_params_fine/fcn_{}.ckpt'.format(iteration+1))
+          self.logger.debug('Model params after {} iterations saved to {}'
+                           .format(iteration+1, save_path))
           best_loss = cumul_loss
         cumul_loss = 0.0
 

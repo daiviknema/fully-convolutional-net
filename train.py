@@ -9,20 +9,12 @@ import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.DEBUG)
 
 def print_usage():
-  print('python train.py [--coarse | --fine]')
+  print('Usage:')
+  print('python train.py MAX_ITERATIONS_COARSE MAX_ITERATIONS_FINE SAVE_PARAMS_AFTER')
 
-if len(sys.argv) != 2:
+if len(sys.argv) != 4:
   print_usage()
   exit(1)
-
-assert(sys.argv[-1] in ['--coarse', '--fine'])
-if sys.argv[-1] == '--coarse':
-  coarse = True
-else:
-  coarse = False
-
-if coarse:
-  logging.debug('Coarse training')
 
 # TRAINVAL_ROOT_DIR = '/root/PASCAL-VOC-Dataset/TrainVal'
 # TEST_ROOT_DIR = '/root/PASCAL-VOC-Dataset/Test'
@@ -32,13 +24,9 @@ TRAINVAL_ROOT_DIR = '/home/paperspace/PASCAL-VOC-Dataset/TrainVal'
 TEST_ROOT_DIR = '/home/paperpsace/PASCAL-VOC-Dataset/Test'
 VGG_PARAMS_ROOT_DIR = '/home/paperspace/FCN/vgg-weights'
 
-MAX_ITERATIONS = 10
-SAVE_PARAMS_AFTER = 1
+MAX_ITERATIONS_COARSE = int(sys.argv[1])
+MAX_ITERATIONS_FINE = int(sys.argv[2])
+SAVE_PARAMS_AFTER = int(sys.argv[3])
 
 fcn = FCN(TRAINVAL_ROOT_DIR, TEST_ROOT_DIR, VGG_PARAMS_ROOT_DIR)
-
-if os.path.exists('best_params') and len(os.listdir('best_params')) > 0:
-  best_params_ckpt = os.path.join('best_params', '.'.join(os.listdir('best_params')[0].split('.')[:-1]))
-else:
-  best_params_ckpt = None
-fcn.train(MAX_ITERATIONS, SAVE_PARAMS_AFTER, best_params_ckpt, coarse)
+fcn.train(MAX_ITERATIONS_COARSE, MAX_ITERATIONS_FINE, SAVE_PARAMS_AFTER)
