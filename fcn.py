@@ -100,7 +100,7 @@ class FCN(object):
       return dic
     elif name == 'score_pool3':
       dic = {
-        'weights': tf.Variable(tf.contrib.layers.xavier_initializer()([1, 1, 512, 21]), '{}_weights'.format(name)),
+        'weights': tf.Variable(tf.contrib.layers.xavier_initializer()([1, 1, 256, 21]), '{}_weights'.format(name)),
         'biases': tf.Variable(tf.zeros([21,]), '{}_biases'.format(name))
       }
       return dic
@@ -320,7 +320,7 @@ class FCN(object):
 
     # Upconv 4x
     self.params['upconv4'] = self._get_upconv_params(2, 21, 'upconv4')
-    self.net['upconv4'] = tf.nn.conv2d_transpose(self.net['fuse_pool4'], self.params['upconv4']['weights'], output_shape=[1, tf.shape(self.net['fuse_pool4'])[1] * 2, tf.shape(self.net['fuse_pool4'])[2] * 2, 21] strides = [1,2,2,1])
+    self.net['upconv4'] = tf.nn.conv2d_transpose(self.net['fuse_pool4'], self.params['upconv4']['weights'], output_shape=[1, tf.shape(self.net['fuse_pool4'])[1] * 2, tf.shape(self.net['fuse_pool4'])[2] * 2, 21], strides = [1,2,2,1])
     self.net['cropped_upconv4'] = self._get_crop_layer(self.net['upconv4'], self.net['pool3'])
 
     # Score pool3
@@ -331,7 +331,7 @@ class FCN(object):
     self.net['fuse_pool3'] = tf.add(self.net['score_pool3'], self.net['cropped_upconv4'])
 
     # Final score layer
-    self.params['scores_final'] = self.get_upconv_params(8, 21, 'scores_final')
+    self.params['scores_final'] = self._get_upconv_params(8, 21, 'scores_final')
     self.net['scores_final'] = tf.nn.conv2d_transpose(self.net['fuse_pool3'], self.params['scores_final']['weights'], output_shape=[1,tf.shape(self.net['fuse_pool3'])[1] * 8, tf.shape(self.net['fuse_pool3'])[2] * 8, 21], strides=[1,8,8,1])
     self.net['cropped_scores_final'] = self._get_crop_layer(self.net['scores_final'], self.net['input'])
 
@@ -425,7 +425,7 @@ class FCN(object):
       saver.restore(self.sess, restore_params)
     img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
     # ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
-    output = self.sess.run(self.net['fc8'],
+    output = self.sess.run(self.net['cropped_scores_final'],
                          feed_dict = {
                            self.net['input']: img,
                            #self.net['annotation']: ann

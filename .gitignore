@@ -1,4 +1,13 @@
-.ipynb_checkpoints*
 *pyc
-vgg-weights
-
+__pycache__/*
+.ipynb_checkpoints/*
+trained_params/*
+best_params/*
+inference_results/*
+vgg-weights/*
+nohup.out
+loss_*
+log*
+err*
+lol*
+tmp*
