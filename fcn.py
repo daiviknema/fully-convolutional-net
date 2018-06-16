@@ -392,7 +392,10 @@ class FCN(object):
           self.logger.debug('Found best params! Saving to best_params/')
           os.system('rm -rf best_params')
           os.system('mkdir best_params')
-          os.system('cp trained_params/fcn_{}* best_params/'.format(iteration+1))
+          if is_coarse:
+            os.system('cp trained_score_params/fcn_{}* best_params/'.format(iteration+1))
+          else:
+            os.system('cp trained_params/fcn_{}* best_params/'.format(iteration+1))
           best_loss = cumul_loss
         cumul_loss = 0.0
 
