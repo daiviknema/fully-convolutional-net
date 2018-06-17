@@ -32,8 +32,7 @@ class FCN(object):
     # Init instance vars
     self.net = None
     self.params = None
-    self.coarse_optimizer = None
-    self.fine_optimizer = None
+    self.optimizer = None
     self.sess = tf.Session()
 
     # Get VGG params
@@ -338,17 +337,16 @@ class FCN(object):
 
     class_weights = tf.constant(self.class_weights_)
 
-    self.net['loss_coarse'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
+    self.net['loss'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
                                                self.net['annotation'])
-    self.net['loss_fine'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
-                                               self.net['annotation'])
+    # self.net['loss_fine'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
+    #                                            self.net['annotation'])
 
   def train(self, max_iterations_coarse, max_iterations_fine, save_params_after=None, restore_params=None):
-    self.coarse_optimizer = tf.train.AdamOptimizer()
-    self.fine_optimizer = tf.train.AdamOptimizer()
+    self.optimizer = tf.train.AdamOptimizer()
 
-    coarse_train_step = self.coarse_optimizer.minimize(self.net['loss_coarse'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
-    fine_train_step = self.fine_optimizer.minimize(self.net['loss_fine'])
+    coarse_train_step = self.optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
+    fine_train_step = self.optimizer.minimize(self.net['loss'])
 
     self.sess.run(tf.global_variables_initializer())
     coarse_saver = tf.train.Saver(max_to_keep = 1)
@@ -363,7 +361,7 @@ class FCN(object):
       for x in batch['annotations']: ann = x
       img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
       ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
-      _, loss = self.sess.run([coarse_train_step, self.net['loss_coarse']],
+      _, loss = self.sess.run([coarse_train_step, self.net['loss']],
                               feed_dict = {
                                 self.net['input']: img,
                                 self.net['annotation']: ann,
@@ -395,7 +393,7 @@ class FCN(object):
       for x in batch['annotations']: ann = x
       img = np.reshape(img, [1, img.shape[0], img.shape[1], img.shape[2]])
       ann = np.reshape(ann, [1, ann.shape[0], ann.shape[1]])
-      _, loss = self.sess.run([fine_train_step, self.net['loss_fine']],
+      _, loss = self.sess.run([fine_train_step, self.net['loss']],
                               feed_dict = {
                                 self.net['input']: img,
                                 self.net['annotation']: ann,
