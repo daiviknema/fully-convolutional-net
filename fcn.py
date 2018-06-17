@@ -348,9 +348,9 @@ class FCN(object):
     fine_train_step = self.fine_optimizer.minimize(self.net['loss'])
 
     self.sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver(max_to_keep = 1)
+    coarse_saver = tf.train.Saver(max_to_keep = 1)
     if restore_params is not None:
-      saver.restore(self.sess, restore_params)
+      coarse_saver.restore(self.sess, restore_params)
     cumul_loss = 0.0
     best_loss = None
     self.logger.debug('========= COARSE TRAINING =========')
@@ -376,14 +376,15 @@ class FCN(object):
           self.logger.debug('Found best coarse params! Saving to best_params_coarse/')
           os.system('rm -rf best_params_coarse')
           os.system('mkdir best_params_coarse')
-          save_path = saver.save(self.sess,
+          save_path = coarse_saver.save(self.sess,
                                  'best_params_coarse/fcn_{}.ckpt'.format(iteration+1))
           self.logger.debug('Model params after {} iterations saved to {}'
                            .format(iteration+1, save_path))
           best_loss = cumul_loss
         cumul_loss = 0.0
     cumul_loss = 0.0
-    best_loss = None
+
+    fine_saver = tf.train.Saver(max_to_keep = 1)
     self.logger.debug('========= FINE TRAINING =========')
     for iteration in range(max_iterations_fine):
       batch = self.dataset_reader.next_train_batch(1)
@@ -407,7 +408,7 @@ class FCN(object):
           self.logger.debug('Found best fine params! Saving to best_params_fine/')
           os.system('rm -rf best_params_fine')
           os.system('mkdir best_params_fine')
-          save_path = saver.save(self.sess,
+          save_path = fine_saver.save(self.sess,
                                  'best_params_fine/fcn_{}.ckpt'.format(iteration+1))
           self.logger.debug('Model params after {} iterations saved to {}'
                            .format(iteration+1, save_path))
