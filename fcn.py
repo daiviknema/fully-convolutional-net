@@ -32,7 +32,8 @@ class FCN(object):
     # Init instance vars
     self.net = None
     self.params = None
-    self.optimizer = None
+    self.coarse_optimizer = None
+    self.fine_optimizer = None
     self.sess = tf.Session()
 
     # Get VGG params
@@ -340,7 +341,7 @@ class FCN(object):
     self.net['loss_coarse'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
                                                self.net['annotation'])
     self.net['loss_fine'] = self._get_loss_layer_v2(self.net['cropped_scores_final'],
-                                               self.net['annotation'], class_weights)
+                                               self.net['annotation'])
 
   def train(self, max_iterations_coarse, max_iterations_fine, save_params_after=None, restore_params=None):
     self.coarse_optimizer = tf.train.AdamOptimizer()
