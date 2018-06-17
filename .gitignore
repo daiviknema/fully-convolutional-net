@@ -1,8 +1,10 @@
 *pyc
 __pycache__/*
 .ipynb_checkpoints/*
-trained_params/*
-best_params/*
+trained_params_fine/*
+best_params_fine/*
+trained_params_coarse/*
+best_params_coarse/*
 inference_results/*
 vgg-weights/*
 nohup.out
