@@ -128,9 +128,6 @@ class FCN(object):
     }
     return dic
 
-  def _get_upconv_layer(self, bottom, params):
-    pass
-
   def _get_conv_layer(self, bottom, params):
     layer = tf.nn.bias_add(
         tf.nn.conv2d(
@@ -343,7 +340,7 @@ class FCN(object):
     #                                            self.net['annotation'])
 
   def train(self, max_iterations_coarse, max_iterations_fine, save_params_after=None, restore_params=None):
-    self.optimizer = tf.train.AdamOptimizer()
+    self.optimizer = tf.train.GradientDescentOptimizer(1e-3)
 
     coarse_train_step = self.optimizer.minimize(self.net['loss'], var_list=[self.params['score_pool3']['weights'], self.params['score_pool4']['weights'], self.params['score_fc']['weights']])
     fine_train_step = self.optimizer.minimize(self.net['loss'])
