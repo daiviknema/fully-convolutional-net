@@ -201,7 +201,7 @@ class FCN(object):
     else:
       center = factor - 0.5
     tmp = np.ogrid[:kernel_sz, :kernel_sz]
-    kernel = (1 - abs(tmp[0] - center)/factor)
+    kernel = (1 - abs(tmp[0] - center)/factor)\
              * (1 - abs(tmp[1] - center)/factor)
     for i in range(out_channels):
       weights[:, :, i, i] = kernel

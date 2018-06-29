@@ -54,7 +54,7 @@ logging.debug('Created the dsr object')
 
 if not os.path.exists('inference_results'):
   os.mkdir('inference_results')
-newdir_path = 'inference_results/results-{}'
+newdir_path = 'inference_results/results-{}'\
   .format(datetime.datetime.now().strftime('%d-%m-%Y-%H-%M-%S'))
 os.mkdir(newdir_path)
 for i in range(num_examples):
