@@ -58,7 +58,7 @@ Now suppose we want to use the best fine training parameters from the previous t
 python train.py 0 100 10 best_params_fine/fcn_<PQR>.ckpt
 ```
 
-where <PQR> is the best params index from the previous training session.
+where `<PQR>` is the best params index from the previous training session.
 
 The inference script can be run as:
 
@@ -71,5 +71,10 @@ The parameters are:
 - `CHECKPOINT`: These are the parameters of the model that will be used to perform inference.
 - `NUM_EXAMPLES`: Number of example images to perform inference on.
 
+#### Example of inference
+
+``` bash
+python infer.py best_params_fine/fcn_<PQR>.ckpt 10
+```
 
 
